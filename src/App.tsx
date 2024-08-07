@@ -16,7 +16,7 @@ import Footer from "./Footer"
 
 const DAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי"]
 const UNIVERSITY_DAYS = ["א", "ב", "ג", "ד", "ה", "ו"]
-const CURRENT_SEMESTER = "2024a"
+const CURRENT_SEMESTER = "2024b"
 
 function arraysEqual(a: any[], b: any[]) {
   if (a === b) return true
@@ -47,7 +47,7 @@ function App() {
     )
     const endHour = parseInt(endRef.current?.value?.split(":")[0] ?? "0", 10)
 
-    const response = await fetch(`/courses/${CURRENT_SEMESTER}.json`)
+    const response = await fetch(`/courses/courses-${CURRENT_SEMESTER}.json`)
     const courses = await response.json()
     const buildings: Record<string, Set<string>> = {}
     for (const course of Object.values(courses) as any) {
