@@ -16,9 +16,10 @@ import Footer from "./Footer"
 
 const DAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי"]
 const UNIVERSITY_DAYS = ["א", "ב", "ג", "ד", "ה", "ו"]
-const CURRENT_SEMESTER = "2024b"
+const SEMESTERS = ["2023a", "2023b", "2024a", "2024b", "2025a", "2025b"]
+const CURRENT_SEMESTER = "2025a"
 
-function arraysEqual(a: any[], b: any[]) {
+const arraysEqual = (a: any[], b: any[]) => {
   if (a === b) return true
   if (a == null || b == null) return false
   if (a.length !== b.length) return false
@@ -29,86 +30,105 @@ function arraysEqual(a: any[], b: any[]) {
   return true
 }
 
-function App() {
+const SEMESTER_ENGLISH_TO_HEBREW: Record<string, string> = {
+  a: "א'",
+  b: "ב'",
+}
+
+const formatSemester = (semester: string) => {
+  return semester.slice(0, 4) + SEMESTER_ENGLISH_TO_HEBREW[semester[4]]
+}
+
+const App = () => {
   const colorScheme = useColorScheme()
   const dayRef = useRef<HTMLInputElement>(null)
   const startRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLInputElement>(null)
+  const [semester, setSemester] = useState(CURRENT_SEMESTER)
   const [availableRooms, setAvailableRooms] = useState<
     Record<string, Set<string>>
   >({})
+  const [loading, setLoading] = useState(false)
 
   const search = async () => {
     console.log("meow")
-    const day = DAYS.indexOf(dayRef.current?.value ?? "ראשון")
-    const startHour = parseInt(
-      startRef.current?.value?.split(":")[0] ?? "0",
-      10
-    )
-    const endHour = parseInt(endRef.current?.value?.split(":")[0] ?? "0", 10)
+    setAvailableRooms({})
+    setLoading(true)
+    try {
+      const day = DAYS.indexOf(dayRef.current?.value ?? "ראשון")
+      const startHour = parseInt(
+        startRef.current?.value?.split(":")[0] ?? "0",
+        10
+      )
+      const endHour = parseInt(endRef.current?.value?.split(":")[0] ?? "0", 10)
 
-    const response = await fetch(`/courses/courses-${CURRENT_SEMESTER}.json`)
-    const courses = await response.json()
-    const buildings: Record<string, Set<string>> = {}
-    for (const course of Object.values(courses) as any) {
-      for (const group of course.groups) {
-        for (const lesson of group.lessons) {
-          if (lesson.room === "") {
-            continue
-          }
-
-          const building = buildings[lesson.building] ?? new Set()
-          buildings[lesson.building] = building
-          building.add(lesson.room)
-        }
-      }
-    }
-
-    for (const course of Object.values(courses) as any) {
-      for (const group of course.groups) {
-        for (const lesson of group.lessons) {
-          if (lesson.day === UNIVERSITY_DAYS[day]) {
+      const response = await fetch(
+        `https://arazim-project.com/courses/courses-${semester}.json`
+      )
+      const courses = await response.json()
+      const buildings: Record<string, Set<string>> = {}
+      for (const course of Object.values(courses) as any) {
+        for (const group of course.groups) {
+          for (const lesson of group.lessons) {
             if (lesson.room === "") {
               continue
             }
 
-            const lessonStartHour = parseInt(
-              lesson.time.split("-")[0].split(":")[0],
-              10
-            )
-            const lessonEndHour = parseInt(
-              lesson.time.split("-")[1].split(":")[0],
-              10
-            )
-            const sortedHours = [
-              startHour,
-              endHour,
-              lessonStartHour,
-              lessonEndHour,
-            ]
-            sortedHours.sort((a, b) => a - b)
-            if (
-              !arraysEqual(sortedHours, [
+            const building = buildings[lesson.building] ?? new Set()
+            buildings[lesson.building] = building
+            building.add(lesson.room)
+          }
+        }
+      }
+
+      for (const course of Object.values(courses) as any) {
+        for (const group of course.groups) {
+          for (const lesson of group.lessons) {
+            if (lesson.day === UNIVERSITY_DAYS[day]) {
+              if (lesson.room === "") {
+                continue
+              }
+
+              const lessonStartHour = parseInt(
+                lesson.time.split("-")[0].split(":")[0],
+                10
+              )
+              const lessonEndHour = parseInt(
+                lesson.time.split("-")[1].split(":")[0],
+                10
+              )
+              const sortedHours = [
                 startHour,
                 endHour,
                 lessonStartHour,
                 lessonEndHour,
-              ]) &&
-              !arraysEqual(sortedHours, [
-                lessonStartHour,
-                lessonEndHour,
-                startHour,
-                endHour,
-              ])
-            ) {
-              buildings[lesson.building].delete(lesson.room)
+              ]
+              sortedHours.sort((a, b) => a - b)
+              if (
+                !arraysEqual(sortedHours, [
+                  startHour,
+                  endHour,
+                  lessonStartHour,
+                  lessonEndHour,
+                ]) &&
+                !arraysEqual(sortedHours, [
+                  lessonStartHour,
+                  lessonEndHour,
+                  startHour,
+                  endHour,
+                ])
+              ) {
+                buildings[lesson.building].delete(lesson.room)
+              }
             }
           }
         }
       }
-    }
 
-    setAvailableRooms(buildings)
+      setAvailableRooms(buildings)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -146,6 +166,16 @@ function App() {
             >
               <div style={{ flex: "none" }}>
                 <Select
+                  label="סמסטר"
+                  leftSection={<i className="fa-solid fa-cloud-moon" />}
+                  data={SEMESTERS.map((semester) => ({
+                    value: semester,
+                    label: formatSemester(semester),
+                  }))}
+                  value={semester}
+                  onChange={(v) => setSemester(v ?? CURRENT_SEMESTER)}
+                />
+                <Select
                   ref={dayRef}
                   label="יום"
                   data={DAYS}
@@ -162,6 +192,7 @@ function App() {
                   leftSection={<i className="fa-solid fa-clock" />}
                 />
                 <Button
+                  loading={loading}
                   my="xs"
                   fullWidth
                   leftSection={<i className="fa-solid fa-search" />}
